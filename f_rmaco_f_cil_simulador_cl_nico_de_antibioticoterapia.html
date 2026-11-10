@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fármaco Fácil: Simulador Clínico de Antibioticoterapia Odontológica</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Montserrat & Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            purple: '#5642CC',
+                            deep: '#382699',
+                            darker: '#1E1359',
+                            night: '#130B3B',
+                            mint: '#1EE0B6',
+                            mintDark: '#12B893',
+                            coral: '#FF4D6D',
+                            amber: '#FFB800',
+                            lavender: '#DCD6FF'
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Montserrat', 'sans-serif'],
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-primary: #5642CC;
+            --bg-deep: #2B1C78;
+            --accent-mint: #1EE0B6;
+            --accent-coral: #FF4D6D;
+        }
+
+        body {
+            background: linear-gradient(145deg, #5642CC 0%, #3E2BA8 55%, #231566 100%);
+            color: #FFFFFF;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Brush Stroke Effect from Reference Image */
+        .brush-banner {
+            background: #1EE0B6;
+            clip-path: polygon(1% 10%, 98% 3%, 100% 35%, 97% 70%, 99% 94%, 2% 97%, 0% 65%, 2% 30%);
+        }
+
+        /* Clean Minimalist Glass Cards */
+        .clean-card {
+            background: rgba(25, 15, 74, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        /* Minimalist Tactile Option Buttons */
+        .option-card {
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1.5px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .option-card:hover {
+            transform: translateY(-2px);
+            background: rgba(30, 224, 182, 0.12);
+            border-color: #1EE0B6;
+        }
+
+        .option-card:active {
+            transform: scale(0.99);
+        }
+
+        /* Subtle Pulse for Active Infection */
+        @keyframes softPulse {
+            0%, 100% { transform: scale(1); opacity: 0.75; }
+            50% { transform: scale(1.1); opacity: 0.95; }
+        }
+
+        .hotspot-pulse {
+            animation: softPulse 2s ease-in-out infinite;
+            transform-origin: center;
+        }
+
+        /* Score Pop Animation */
+        @keyframes popScore {
+            0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+            25% { opacity: 1; transform: translateY(0) scale(1.05); }
+            80% { opacity: 1; transform: translateY(-10px) scale(1); }
+            100% { opacity: 0; transform: translateY(-24px) scale(0.95); }
+        }
+
+        .score-float {
+            animation: popScore 1.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="selection:bg-brand-mint selection:text-brand-night flex flex-col min-h-screen">
+
+    <!-- Floating Score Notification -->
+    <div id="floatingScoreContainer" class="fixed top-20 right-6 z-50 pointer-events-none flex flex-col gap-2"></div>
+
+    <!-- MINIMALIST TOP BAR -->
+    <header class="sticky top-0 z-40 bg-brand-night/70 backdrop-blur-md border-b border-white/10">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <!-- Brand -->
+            <button onclick="showWelcomeScreen()" class="flex items-center gap-2.5 text-left group">
+                <div class="w-9 h-9 rounded-xl bg-brand-mint flex items-center justify-center text-brand-night font-black text-xl group-hover:scale-105 transition">
+                    <i class="ph-fill ph-tooth"></i>
+                </div>
+                <div>
+                    <span class="block text-[10px] font-extrabold tracking-widest uppercase text-brand-mint leading-none">
+                        DR. CARLOS PETIT LORUSSO
+                    </span>
+                    <span class="font-display font-black text-base sm:text-lg text-white tracking-tight">
+                        FÁRMACO FÁCIL
+                    </span>
+                </div>
+            </button>
+
+            <!-- Minimalist Score & Quick Tools -->
+            <div class="flex items-center gap-2">
+                <!-- Score Pill -->
+                <div class="bg-white/10 border border-white/15 rounded-xl px-3 py-1.5 flex items-center gap-2">
+                    <i class="ph-fill ph-trophy text-brand-mint text-base"></i>
+                    <span id="hudScore" class="font-mono font-bold text-sm text-white">0 pts</span>
+                    <span id="hudStreak" class="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-brand-mint/20 text-brand-mint">x1</span>
+                </div>
+
+                <!-- Reference Guide Button -->
+                <button onclick="toggleModal('vademecumModal')" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-brand-mint hover:text-brand-night transition font-bold text-xs flex items-center gap-1.5 border border-white/15" title="Resumen de Dosis">
+                    <i class="ph-bold ph-book-open text-sm"></i>
+                    <span class="hidden sm:inline">Guía Rápida</span>
+                </button>
+
+                <!-- Calculator Button -->
+                <button onclick="toggleModal('calcModal')" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-brand-mint hover:text-brand-night transition font-bold text-xs flex items-center gap-1.5 border border-white/15" title="Calculadora Pediátrica e IV">
+                    <i class="ph-bold ph-calculator text-sm text-brand-mint"></i>
+                    <span class="hidden sm:inline">Calculadora</span>
+                </button>
+
+                <!-- Sound Toggle -->
+                <button onclick="toggleSound()" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-brand-mint border border-white/15 transition" title="Sonido">
+                    <i id="soundIcon" class="ph-fill ph-speaker-high text-base"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE (CENTERED & MINIMALIST) -->
+    <main class="max-w-5xl w-full mx-auto px-4 py-6 flex-1 flex flex-col justify-center">
+
+        <!-- ========================================== -->
+        <!-- SCREEN 1: MINIMALIST HOME & CASE SELECTOR  -->
+        <!-- ========================================== -->
+        <section id="welcomeScreen" class="space-y-6">
+            <!-- Clean Poster Hero Inspired by Reference Image -->
+            <div class="rounded-3xl bg-gradient-to-br from-[#5B46D6] to-[#3B27A1] border border-white/20 p-6 sm:p-8 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div class="space-y-2 max-w-xl">
+                    <span class="text-xs font-extrabold tracking-widest uppercase text-brand-mint">
+                        CURSO ONLINE • ODONTOLOGÍA BASADA EN EVIDENCIA
+                    </span>
+                    <h1 class="font-display font-black text-3xl sm:text-5xl text-white tracking-tight leading-none">
+                        FÁRMACO FÁCIL: <span class="text-brand-mint">Antibióticos</span>
+                    </h1>
+                    <p class="text-sm sm:text-base text-brand-lavender/90 pt-1">
+                        Elige un paciente y toma decisiones paso a paso. El cuadro clínico <strong>mejorará o se complicará</strong> según tu receta.
+                    </p>
+                </div>
+
+                <!-- Signature Mint Brush Badge -->
+                <div class="brush-banner px-6 py-4 text-brand-night shrink-0 self-stretch md:self-auto flex flex-col justify-center">
+                    <div class="text-xs font-extrabold uppercase tracking-wider opacity-80">Simulador Interactivo</div>
+                    <div class="font-display font-black text-base sm:text-lg leading-tight mt-0.5">
+                        • 5 Casos Clínicos<br>
+                        • Algoritmo en Vivo<br>
+                        • Gana o Pierde Puntos
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simple 5-Case Grid -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-extrabold uppercase tracking-wider text-brand-mint flex items-center gap-2">
+                        <i class="ph-fill ph-play-circle text-lg"></i> Selecciona un Caso para Jugar
+                    </h2>
+                    <button onclick="resetAllProgress()" class="text-xs text-brand-lavender hover:text-white flex items-center gap-1 transition">
+                        <i class="ph-bold ph-arrow-counter-clockwise"></i> Reiniciar puntos
+                    </button>
+                </div>
+
+                <div id="casesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 2: MINIMALIST GAMEPLAY VIEW         -->
+        <!-- ========================================== -->
+        <section id="simulatorScreen" class="hidden space-y-4">
+
+            <!-- Top Quick Navigation & Step Dots -->
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <button onclick="showWelcomeScreen()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold flex items-center gap-1.5 transition">
+                    <i class="ph-bold ph-squares-four"></i> Cambiar de Caso
+                </button>
+
+                <!-- Minimalist Step Progress Pills -->
+                <div id="algorithmBreadcrumb" class="flex items-center gap-1.5 overflow-x-auto py-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Feedback Toast (Only visible after making a decision) -->
+            <div id="lastDecisionFeedback" class="hidden rounded-2xl px-4 py-3 border transition-all">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div id="feedbackIconBox" class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"></div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span id="feedbackTitle" class="font-extrabold text-xs uppercase tracking-wider"></span>
+                                <span id="feedbackPointsBadge" class="font-mono font-bold text-xs px-2 py-0.5 rounded"></span>
+                            </div>
+                            <p id="feedbackRationale" class="text-xs sm:text-sm text-white/95 mt-0.5"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UNIFIED GAME CARD: Left Visual Patient + Right Decision Choices -->
+            <div id="scenarioNarrativeCard" class="clean-card rounded-3xl p-5 sm:p-7 shadow-2xl transition-all">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+
+                    <!-- LEFT (5 Cols): Clean Visual Patient Card -->
+                    <div class="lg:col-span-5 flex flex-col items-center bg-brand-night/60 rounded-2xl p-5 border border-white/10 space-y-4">
+                        <!-- Patient Header & Allergy Pill -->
+                        <div class="w-full flex items-center justify-between gap-2">
+                            <div>
+                                <div id="patientNameAge" class="text-[11px] font-bold uppercase tracking-wider text-brand-lavender">Masculino, 34 años</div>
+                                <div id="patientDiagnosisTag" class="font-display font-extrabold text-base text-white">Pieza 46</div>
+                            </div>
+                            <span id="allergyBadge" class="px-2.5 py-1 rounded-lg text-[11px] font-extrabold">
+                                Sin Alergias
+                            </span>
+                        </div>
+
+                        <!-- Main Interactive Graphic -->
+                        <div class="relative w-full flex flex-col items-center justify-center py-2">
+                            <div id="svgPatientContainer" class="w-full flex items-center justify-center">
+                                <!-- SVG Injected by JS -->
+                            </div>
+                            <div id="visualCaption" class="text-xs text-center text-brand-lavender font-medium mt-2">
+                                <!-- Short visual state caption -->
+                            </div>
+                        </div>
+
+                        <!-- Stability Bar -->
+                        <div class="w-full space-y-1">
+                            <div class="flex justify-between text-[11px] font-bold">
+                                <span class="text-brand-lavender">Evolución del Paciente</span>
+                                <span id="stabilityText" class="font-mono text-brand-mint">75%</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+                                <div id="stabilityBar" class="h-full rounded-full bg-brand-mint transition-all duration-500" style="width: 75%"></div>
+                            </div>
+                        </div>
+
+                        <!-- 3 Essential Vital Signs Pills -->
+                        <div class="w-full grid grid-cols-3 gap-2 pt-1 text-center">
+                            <div class="bg-white/5 rounded-xl py-2 px-1 border border-white/10">
+                                <div class="text-[10px] text-brand-lavender">Fiebre</div>
+                                <div id="vitalTemp" class="font-mono font-bold text-xs sm:text-sm text-white">37.8 °C</div>
+                            </div>
+                            <div class="bg-white/5 rounded-xl py-2 px-1 border border-white/10">
+                                <div class="text-[10px] text-brand-lavender">Apertura</div>
+                                <div id="vitalTrismus" class="font-mono font-bold text-xs sm:text-sm text-brand-mint">38 mm</div>
+                            </div>
+                            <div class="bg-white/5 rounded-xl py-2 px-1 border border-white/10">
+                                <div class="text-[10px] text-brand-lavender">Vía Aérea</div>
+                                <div id="vitalAirway" class="font-mono font-bold text-xs sm:text-sm text-brand-mint">Normal</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT (7 Cols): Concise Scenario & Clear Choices -->
+                    <div class="lg:col-span-7 space-y-5">
+
+                        <!-- Urgent Complication Alert (Hidden unless patient worsens) -->
+                        <div id="complicationAlertBanner" class="hidden rounded-xl bg-brand-coral/20 border border-brand-coral px-3.5 py-2.5 flex items-center gap-2.5">
+                            <i class="ph-fill ph-warning-octagon text-brand-coral text-xl shrink-0"></i>
+                            <span class="text-xs font-extrabold uppercase tracking-wide text-brand-coral">
+                                ¡El paciente empeoró! Cambia de ruta terapéutica
+                            </span>
+                        </div>
+
+                        <!-- Scenario Title & Short Description -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span id="nodeStageLabel" class="text-xs font-extrabold uppercase tracking-wider text-brand-mint">
+                                    PASO 1
+                                </span>
+                                <!-- Optional Collapsible Hint Button -->
+                                <button onclick="toggleHint()" class="text-xs font-bold text-brand-lavender hover:text-brand-mint flex items-center gap-1 transition">
+                                    <i class="ph-fill ph-lightbulb"></i> Ver pista clínica
+                                </button>
+                            </div>
+
+                            <!-- Hidden Hint Box -->
+                            <div id="hintBox" class="hidden rounded-xl bg-brand-purple/50 border border-brand-mint/30 p-3 text-xs text-brand-lavender">
+                                <strong class="text-brand-mint">Pista:</strong> <span id="clinicalPearlText"></span>
+                            </div>
+
+                            <h3 id="nodeHeadline" class="font-display font-black text-xl sm:text-2xl text-white leading-tight">
+                                Título de la situación
+                            </h3>
+
+                            <div id="nodeDescription" class="text-sm sm:text-base text-brand-lavender/95 leading-relaxed space-y-1.5">
+                                <!-- Concise scenario text -->
+                            </div>
+                        </div>
+
+                        <!-- Tactile Options List -->
+                        <div class="space-y-2.5 pt-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-extrabold uppercase tracking-wider text-white/60">
+                                    Selecciona tu conducta (varias pueden ser válidas):
+                                </span>
+                                <span class="text-[11px] font-bold text-brand-mint">4 opciones disponibles</span>
+                            </div>
+                            <div id="optionsContainer" class="space-y-2.5">
+                                <!-- Option buttons injected here -->
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ===================================================== -->
+    <!-- MODAL 1: MINIMALIST QUICK GUIDE (VADEMÉCUM)           -->
+    <!-- ===================================================== -->
+    <div id="vademecumModal" class="fixed inset-0 z-50 hidden bg-brand-night/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="clean-card rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-white/20">
+            <div class="p-4 bg-brand-darker border-b border-white/10 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="ph-fill ph-book-open text-brand-mint text-xl"></i>
+                    <h3 class="font-display font-extrabold text-base text-white">Guía Rápida de Antibióticos (Dr. Petit Lorusso)</h3>
+                </div>
+                <button onclick="toggleModal('vademecumModal')" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-brand-coral text-white flex items-center justify-center">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+
+            <div class="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="bg-white/5 p-3.5 rounded-2xl border border-white/10">
+                        <div class="font-extrabold text-brand-mint">Amoxicilina ± Ác. Clavulánico</div>
+                        <div class="text-xs text-brand-lavender mt-1">
+                            • <strong>Efecto:</strong> Bactericida (pared celular PBP).<br>
+                            • <strong>Dosis Adulto:</strong> 500-875 mg c/8h o Amox/Clav 875/125 mg c/8h (7 días).<br>
+                            • <strong>Clave:</strong> 1.ª elección en pacientes sin alergia.
+                        </div>
+                    </div>
+                    <div class="bg-white/5 p-3.5 rounded-2xl border border-white/10">
+                        <div class="font-extrabold text-brand-mint">Clindamicina (Lincosamida)</div>
+                        <div class="text-xs text-brand-lavender mt-1">
+                            • <strong>Efecto:</strong> Subunidad 50S. Penetra <strong>40% en hueso</strong> y <strong>30% en pus</strong>.<br>
+                            • <strong>Dosis:</strong> VO 300-450 mg c/6h (con 1 vaso lleno de agua). IV 600 mg c/6h.<br>
+                            • <strong>Alerta:</strong> Suspender si hay diarrea (prohibido dar Loperamida).
+                        </div>
+                    </div>
+                    <div class="bg-white/5 p-3.5 rounded-2xl border border-white/10">
+                        <div class="font-extrabold text-brand-mint">Doxiciclina (Tetraciclina)</div>
+                        <div class="text-xs text-brand-lavender mt-1">
+                            • <strong>Efecto:</strong> Subunidad 30S + inhibe colagenasas.<br>
+                            • <strong>Dosis:</strong> Día 1: 100 mg c/12h; luego 100 mg c/24h.<br>
+                            • <strong>Clave:</strong> No tomar con lácteos/antiácidos. Prohibida en &lt; 8 años.
+                        </div>
+                    </div>
+                    <div class="bg-white/5 p-3.5 rounded-2xl border border-white/10">
+                        <div class="font-extrabold text-brand-mint">Reglas Anatómicas e IV</div>
+                        <div class="text-xs text-brand-lavender mt-1">
+                            • <strong>Línea Milohioidea:</strong> 1.er molar (encima) → Sublingual. 2.º/3.er molar (debajo) → Submandibular.<br>
+                            • <strong>Clindamicina IV:</strong> Prohibido bolo directo. Diluir ≤ 12 mg/ml y pasar ≤ 30 mg/min.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- MODAL 2: SIMPLE PEDIATRIC & IV CALCULATOR             -->
+    <!-- ===================================================== -->
+    <div id="calcModal" class="fixed inset-0 z-50 hidden bg-brand-night/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="clean-card rounded-3xl max-w-md w-full overflow-hidden border border-white/20">
+            <div class="p-4 bg-brand-darker border-b border-white/10 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-calculator text-brand-mint text-xl"></i>
+                    <h3 class="font-display font-extrabold text-base text-white">Calculadora Rápida de Dosis</h3>
+                </div>
+                <button onclick="toggleModal('calcModal')" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-brand-coral text-white flex items-center justify-center">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-brand-lavender block mb-1">Peso del Paciente (kg)</label>
+                        <input type="number" id="calcWeight" value="18" oninput="updateCalculator()" class="w-full bg-brand-night border border-white/20 rounded-xl px-3 py-2 font-mono font-bold text-white">
+                    </div>
+                    <div>
+                        <label class="text-xs text-brand-lavender block mb-1">Esquema (mg/kg/día)</label>
+                        <select id="calcMgKg" onchange="updateCalculator()" class="w-full bg-brand-night border border-white/20 rounded-xl px-3 py-2 font-mono font-bold text-white">
+                            <option value="20" selected>20 mg/kg/día (Clinda IV)</option>
+                            <option value="40">40 mg/kg/día (Amox Susp)</option>
+                            <option value="15">15 mg/kg/día (Clinda VO)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-brand-night/80 rounded-2xl p-4 border border-brand-mint/30 grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <div class="text-[10px] text-brand-lavender uppercase">Total Día</div>
+                        <div id="resTotalDay" class="font-mono font-extrabold text-base text-white">360 mg</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-brand-lavender uppercase">Cada 8 Horas</div>
+                        <div id="resPerDose" class="font-mono font-extrabold text-base text-brand-mint">120 mg</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-brand-lavender uppercase">Vial (150mg/ml)</div>
+                        <div id="resVialMl" class="font-mono font-extrabold text-base text-brand-amber">0.8 ml</div>
+                    </div>
+                </div>
+
+                <div class="text-xs text-brand-lavender bg-white/5 p-3 rounded-xl border border-white/10">
+                    <strong class="text-brand-mint">Seguridad IV Clindamicina:</strong> Diluir siempre a <strong>≤ 12 mg/ml</strong> e infundir en 10-60 min (<strong>≤ 30 mg/min</strong>). Nunca administrar en bolo directo.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- MODAL 3: CLEAN CASE COMPLETION                        -->
+    <!-- ===================================================== -->
+    <div id="caseCompleteModal" class="fixed inset-0 z-50 hidden bg-brand-night/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="clean-card rounded-3xl max-w-md w-full p-6 text-center space-y-5 border-2 border-brand-mint">
+            <div class="w-16 h-16 rounded-2xl bg-brand-mint/20 border border-brand-mint text-brand-mint flex items-center justify-center mx-auto text-4xl">
+                <i class="ph-fill ph-check-Fat ph-check-circle"></i>
+            </div>
+
+            <div class="space-y-1">
+                <span class="text-[11px] font-extrabold uppercase tracking-widest text-brand-mint">PACIENTE DADO DE ALTA</span>
+                <h3 id="completeModalTitle" class="font-display font-black text-2xl text-white">¡Caso Completado!</h3>
+                <p id="completeModalSummary" class="text-xs sm:text-sm text-brand-lavender pt-1"></p>
+            </div>
+
+            <div class="bg-brand-night/60 p-3.5 rounded-2xl border border-white/10 flex justify-around">
+                <div>
+                    <div class="text-[10px] uppercase text-brand-lavender">Puntaje Total</div>
+                    <div id="completeModalScore" class="font-mono font-black text-xl text-brand-mint">0 pts</div>
+                </div>
+                <div class="border-l border-white/10"></div>
+                <div>
+                    <div class="text-[10px] uppercase text-brand-lavender">Complicaciones</div>
+                    <div id="completeModalRescues" class="font-mono font-black text-xl text-white">0</div>
+                </div>
+            </div>
+
+            <div class="flex gap-2.5">
+                <button onclick="closeCompleteModalAndHome()" class="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition">
+                    Menú
+                </button>
+                <button id="nextCaseBtn" class="flex-1 py-3 rounded-xl bg-brand-mint hover:bg-brand-mintDark text-brand-night font-black text-xs transition flex items-center justify-center gap-1.5">
+                    <span>Siguiente Caso</span>
+                    <i class="ph-bold ph-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /********************************************************************
+         * 1. SOUND ENGINE
+         ********************************************************************/
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) audioCtx = new AudioContext();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                const notes = type === 'success' ? [523.25, 659.25, 783.99]
+                            : type === 'partial' ? [440, 554.37]
+                            : type === 'fanfare' ? [523.25, 659.25, 783.99, 1046.5]
+                            : [220, 174.61];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = type === 'error' ? 'sawtooth' : 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    gain.gain.setValueAtTime(0.1, now + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.08);
+                    osc.stop(now + idx * 0.08 + 0.28);
+                });
+            } catch (e) {}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundIcon').className = soundEnabled
+                ? 'ph-fill ph-speaker-high text-base text-brand-mint'
+                : 'ph-fill ph-speaker-slash text-base text-brand-coral';
+        }
+
+        /********************************************************************
+         * 2. CONCISE, MINIMALIST CLINICAL CASES (DR. PETIT LORUSSO)
+         ********************************************************************/
+        const CLINICAL_CASES = [
+            {
+                id: 1,
+                code: "CASO 1",
+                title: "Absceso Agudo y Línea Milohioidea",
+                subtitle: "Pieza 46 • Terapia de 1.ª línea y betalactamasas",
+                patient: "Masculino, 34 años",
+                allergy: "Sin alergias",
+                allergyType: "safe",
+                tooth: "1.er Molar Inf. Der. (46)",
+                summaryIcon: "ph-tooth",
+                pearl: "El ápice de la pieza 46 está POR ENCIMA del músculo milohioideo (si se complica, invade el espacio sublingual). En pacientes sin alergia, los betalactámicos son de 1.ª elección.",
+                nodes: {
+                    "start": {
+                        stage: "PASO 1 • EVALUACIÓN INICIAL",
+                        type: "initial",
+                        headline: "Absceso alveolar agudo en pieza 46",
+                        description: `<p>Paciente sin alergias acude con dolor pulsátil y tumefacción vestibular en el <strong>primer molar inferior derecho (46)</strong> con necrosis pulpar.</p>`,
+                        vitals: { temp: "37.8 °C", trismus: "38 mm", airway: "Normal", stability: 75 },
+                        visualState: { swelling: "vestibular_right", severity: "moderate", toothHighlight: "46", caption: "Tumefacción vestibular (Ápice encima de línea milohioidea)" },
+                        options: [
+                            {
+                                title: "Solo Azitromicina 500 mg c/24h por 3 días, sin abrir el diente",
+                                detail: "Macrólido bacteriostático difiriendo el drenaje local.",
+                                quality: "wrong",
+                                points: -100,
+                                nextNode: "node_worsen_sublingual",
+                                rationale: "Incorrecto. Sin drenar el conducto y usando un bacteriostático de 2.ª línea, el pus perfora la cortical lingual."
+                            },
+                            {
+                                title: "Apertura/drenaje de pieza 46 + Amoxicilina simple 500 mg a 875 mg c/8h",
+                                detail: "Betalactámico de 1.ª elección sin inhibidor enzimático.",
+                                quality: "valid",
+                                points: 130,
+                                nextNode: "node_48h_beta_resistance",
+                                rationale: "Opción válida inicial, pero debemos vigilar a las 48h si existen anaerobios productores de betalactamasas."
+                            },
+                            {
+                                title: "Indicar solo analgésicos y frío local por 5 días antes de tocar el molar",
+                                detail: "Conducta expectante sin desbridamiento ni antibiótico.",
+                                quality: "wrong",
+                                points: -120,
+                                nextNode: "node_worsen_sublingual",
+                                rationale: "Incorrecto. El absceso no drenado progresa por encima del músculo milohioideo hacia el espacio sublingual."
+                            },
+                            {
+                                title: "Apertura/drenaje de pieza 46 + Amoxicilina/Ác. Clavulánico 875/125 mg c/8h (7 días)",
+                                detail: "Elimina la causa local + bactericida protegido contra betalactamasas.",
+                                quality: "optimal",
+                                points: 200,
+                                nextNode: "node_48h_optimal",
+                                rationale: "¡Excelente! Drenaje + Amoxicilina/Clavulánico es la 1.ª línea ideal frente a cepas productoras de betalactamasas."
+                            }
+                        ]
+                    },
+                    "node_worsen_sublingual": {
+                        stage: "COMPLICACIÓN • DISEMINACIÓN SUBLINGUAL",
+                        type: "complication",
+                        headline: "Invasión del Espacio Sublingual",
+                        description: `<p>A las 48h presenta piso de boca elevado e indurado. Como el ápice de la pieza 46 está <strong>por encima del músculo milohioideo</strong>, la infección invadió el espacio sublingual.</p>`,
+                        vitals: { temp: "38.6 °C", trismus: "24 mm", airway: "Vigilancia", stability: 35 },
+                        visualState: { swelling: "sublingual_right", severity: "severe", toothHighlight: "46", caption: "¡Alerta! Elevación del piso de boca (Espacio Sublingual)" },
+                        options: [
+                            {
+                                title: "Aumentar la dosis de Azitromicina a 1.000 mg sin drenar el piso de boca",
+                                detail: "Mantener macrólido sin evacuación quirúrgica.",
+                                quality: "wrong",
+                                points: -110,
+                                nextNode: "node_worsen_sublingual",
+                                rationale: "Incorrecto. Una colección purulenta en el espacio sublingual exige drenaje y un fármaco de mayor eficacia."
+                            },
+                            {
+                                title: "Drenaje quirúrgico + Clindamicina 300 mg a 450 mg c/6h con un vaso lleno de agua",
+                                detail: "Excelente penetración en colecciones purulentas (30%) y hueso (40%).",
+                                quality: "valid",
+                                points: 160,
+                                nextNode: "node_48h_optimal",
+                                rationale: "¡Muy buena alternativa! La clindamicina erradica anaerobios productores de betalactamasas."
+                            },
+                            {
+                                title: "Drenaje quirúrgico + desbridamiento + Amoxicilina/Ác. Clavulánico 875/125 mg c/8h",
+                                detail: "Descompresión quirúrgica y cobertura bactericida contra betalactamasas.",
+                                quality: "optimal",
+                                points: 180,
+                                nextNode: "node_48h_optimal",
+                                rationale: "¡Rescate exitoso! Drenaste el espacio sublingual y bloqueaste las betalactamasas."
+                            },
+                            {
+                                title: "Recetar Doxiciclina 100 mg c/24h como único tratamiento sin drenar",
+                                detail: "Tetraciclina bacteriostática sin descompresión local.",
+                                quality: "wrong",
+                                points: -100,
+                                nextNode: "node_worsen_sublingual",
+                                rationale: "Incorrecto. La doxiciclina sin drenaje quirúrgico no resolverá un absceso sublingual agudo."
+                            }
+                        ]
+                    },
+                    "node_48h_beta_resistance": {
+                        stage: "PASO 2 • CONTROL A LAS 48 HORAS",
+                        type: "warning",
+                        headline: "Persiste inflamación por Betalactamasas",
+                        description: `<p>A las 48h persiste exudado purulento porque anaerobios (<em>Prevotella</em> / <em>Bacteroides</em>) producen enzimas <strong>betalactamasas</strong> que hidrolizan la amoxicilina simple.</p>`,
+                        vitals: { temp: "37.6 °C", trismus: "32 mm", airway: "Normal", stability: 60 },
+                        visualState: { swelling: "vestibular_right", severity: "moderate", toothHighlight: "46", caption: "Resistencia enzimática a amoxicilina simple" },
+                        options: [
+                            {
+                                title: "Duplicar la dosis de Amoxicilina simple sin ácido clavulánico",
+                                detail: "Mantener el mismo fármaco sensible a betalactamasas.",
+                                quality: "wrong",
+                                points: -80,
+                                nextNode: "node_worsen_sublingual",
+                                rationale: "Incorrecto. Las betalactamasas siguen inactivando la amoxicilina y el cuadro avanza al espacio sublingual."
+                            },
+                            {
+                                title: "Suspender todo tratamiento antibiótico y esperar 1 semana",
+                                detail: "Abandono terapéutico con infección activa.",
+                                quality: "wrong",
+                                points: -110,
+                                nextNode: "node_worsen_sublingual",
+                                rationale: "Incorrecto. Sin cobertura antimicrobiana activa, la infección perfora hacia el espacio sublingual."
+                            },
+                            {
+                                title: "Rotar a Clindamicina 300 mg VO c/6h (con un vaso entero de agua)",
+                                detail: "Lincosamida no afectada por betalactamasas con 30% de penetración en pus.",
+                                quality: "valid",
+                                points: 150,
+                                nextNode: "node_48h_optimal",
+                                rationale: "¡Válido y eficaz! Cuando falla un betalactámico simple, la clindamicina es una excelente segunda línea."
+                            },
+                            {
+                                title: "Rotar a Amoxicilina / Ácido Clavulánico 875/125 mg c/8h (o 1.000/125 mg c/12h)",
+                                detail: "El ácido clavulánico inhibe las betalactamasas bacterianas.",
+                                quality: "optimal",
+                                points: 180,
+                                nextNode: "node_48h_optimal",
+                                rationale: "¡Exacto! El ácido clavulánico protege al betalactámico y permite la lisis bacteriana."
+                            }
+                        ]
+                    },
+                    "node_48h_optimal": {
+                        stage: "PASO 2 • EVOLUCIÓN A LAS 48 HORAS",
+                        type: "optimal",
+                        headline: "Clara mejoría clínica a las 48 horas",
+                        description: `<p>El edema y el dolor han disminuido drásticamente. El paciente pregunta si <strong>ya puede dejar de tomar el antibiótico hoy</strong> porque se siente bien.</p>`,
+                        vitals: { temp: "36.7 °C", trismus: "42 mm", airway: "Normal", stability: 92 },
+                        visualState: { swelling: "none", severity: "mild", toothHighlight: "46", caption: "Remisión del edema vestibular" },
+                        options: [
+                            {
+                                title: "Suspender el antibiótico hoy mismo (al 2.º día) porque ya no duele",
+                                detail: "Interrupción prematura del ciclo antimicrobiano.",
+                                quality: "wrong",
+                                points: -90,
+                                nextNode: "node_48h_beta_resistance",
+                                rationale: "¡Error! Suspender a las 48h provoca rebote infeccioso y selecciona cepas resistentes."
+                            },
+                            {
+                                title: "Tomar solo 1 cápsula cada 24 horas para 'ahorrar' medicamento",
+                                detail: "Posología subterapéutica por debajo de la CMI.",
+                                quality: "wrong",
+                                points: -100,
+                                nextNode: "node_48h_beta_resistance",
+                                rationale: "Incorrecto. Las dosis subterapéuticas favorecen directamente la resistencia bacteriana."
+                            },
+                            {
+                                title: "Completar los 7 días de pauta antibiótica en horario estricto y concluir la endodoncia",
+                                detail: "Erradica el inóculo remanente y previene resistencias.",
+                                quality: "optimal",
+                                points: 160,
+                                nextNode: "node_resolution",
+                                rationale: "¡Correcto! Completar el ciclo terapéutico y sellar el conducto garantiza la curación."
+                            },
+                            {
+                                title: "Mantener el esquema actual hasta cumplir 7 a 10 días con control clínico al finalizar",
+                                detail: "Cumplimiento de la ventana terapéutica estándar.",
+                                quality: "valid",
+                                points: 140,
+                                nextNode: "node_resolution",
+                                rationale: "¡Muy bien! Mantener la posología completa evita cualquier recaída."
+                            }
+                        ]
+                    },
+                    "node_resolution": {
+                        type: "complete",
+                        summary: "Resolviste el absceso de la pieza 46 dominando el uso de Amoxicilina/Clavulánico y la anatomía de la línea milohioidea."
+                    }
+                }
+            },
+
+            {
+                id: 2,
+                code: "CASO 2",
+                title: "Alergia a Penicilina y Colitis",
+                subtitle: "Pieza 36 • Clindamicina y C. difficile",
+                patient: "Masculino, 42 años",
+                allergy: "Anafilaxia a Amoxicilina",
+                allergyType: "danger",
+                tooth: "1.er Molar Inf. Izq. (36)",
+                summaryIcon: "ph-warning-circle",
+                pearl: "Ante alergia anafiláctica a penicilinas, usa Clindamicina (tomada con un vaso lleno de agua). Si aparece diarrea severa con sangre/moco (C. difficile), suspéndela y NUNCA des loperamida.",
+                nodes: {
+                    "start": {
+                        stage: "PASO 1 • URGENCIA EN PACIENTE ALÉRGICO",
+                        type: "initial",
+                        headline: "Absceso con trismus (22 mm) y Alergia Severa",
+                        description: `<p>Paciente con celulitis mandibular izquierda y trismus por necrosis de pieza 36. Tiene antecedente de <strong>choque anafiláctico por Amoxicilina</strong>. Tras drenar, ¿qué recetas?</p>`,
+                        vitals: { temp: "38.1 °C", trismus: "22 mm", airway: "Normal", stability: 70 },
+                        visualState: { swelling: "submandibular_left", severity: "moderate", toothHighlight: "36", caption: "Trismus moderado en paciente alérgico a betalactámicos" },
+                        options: [
+                            {
+                                title: "Cefalexina 500 mg VO cada 6 horas por 7 días",
+                                detail: "Cefalosporina de 1.ª generación.",
+                                quality: "wrong",
+                                points: -130,
+                                nextNode: "node_anaphylaxis_crisis",
+                                rationale: "¡Peligro! Las cefalosporinas están contraindicadas en pacientes con antecedente de choque anafiláctico a penicilinas."
+                            },
+                            {
+                                title: "Amoxicilina / Ácido Clavulánico 875/125 mg cada 8 horas",
+                                detail: "Betalactámico potenciado.",
+                                quality: "wrong",
+                                points: -150,
+                                nextNode: "node_anaphylaxis_crisis",
+                                rationale: "¡Contraindicación absoluta! Administrar amoxicilina desencadena anafilaxia potencialmente mortal."
+                            },
+                            {
+                                title: "Clindamicina 300 mg VO c/6h, tragada entera con 1 VASO LLENO de agua",
+                                detail: "Lincosamida de 1.ª elección en alergia severa, protegiendo la mucosa esofágica.",
+                                quality: "optimal",
+                                points: 200,
+                                nextNode: "node_day5_diarrhea",
+                                rationale: "¡Impecable! La clindamicina es de elección y el vaso lleno de agua evita la esofagitis."
+                            },
+                            {
+                                title: "Clindamicina 450 mg VO c/6h acompañada de abundante agua y en posición erguida",
+                                detail: "Dosis para infección moderada-grave (1,8 g/día) con prevención esofágica.",
+                                quality: "valid",
+                                points: 170,
+                                nextNode: "node_day5_diarrhea",
+                                rationale: "¡Excelente opción! 450 mg c/6h está dentro del rango oficial de adultos (600 a 1.800 mg/día)."
+                            }
+                        ]
+                    },
+                    "node_anaphylaxis_crisis": {
+                        stage: "EMERGENCIA • REACCIÓN ALÉRGICA",
+                        type: "complication",
+                        headline: "Angioedema y broncoespasmo por betalactámico",
+                        description: `<p>El paciente presenta urticaria aguda y disnea tras tomar el betalactámico. Una vez estabilizada la urgencia médica, ¿cómo manejas la infección dental?</p>`,
+                        vitals: { temp: "38.0 °C", trismus: "20 mm", airway: "Edema", stability: 25 },
+                        visualState: { swelling: "submandibular_left", severity: "severe", toothHighlight: "36", caption: "¡Reacción alérgica severa por betalactámico!" },
+                        options: [
+                            {
+                                title: "Cambiar a Cefadroxilo 500 mg cada 12 horas",
+                                detail: "Otra cefalosporina de primera generación.",
+                                quality: "wrong",
+                                points: -140,
+                                nextNode: "node_anaphylaxis_crisis",
+                                rationale: "¡Error grave! En anafilaxia confirmada no deben administrarse cefalosporinas."
+                            },
+                            {
+                                title: "Suspender betalactámico y usar Claritromicina 500 mg VO cada 12 horas",
+                                detail: "Macrólido alternativo en alergia a betalactámicos.",
+                                quality: "valid",
+                                points: 130,
+                                nextNode: "node_day5_diarrhea",
+                                rationale: "Opción segura frente a la alergia, aunque la clindamicina tiene mayor penetración en pus y hueso."
+                            },
+                            {
+                                title: "Continuar con el betalactámico agregando un antihistamínico oral",
+                                detail: "Mantener el fármaco causante de anafilaxia.",
+                                quality: "wrong",
+                                points: -160,
+                                nextNode: "node_anaphylaxis_crisis",
+                                rationale: "¡Peligro vital! Nunca se mantiene un betalactámico ante angioedema o anafilaxia."
+                            },
+                            {
+                                title: "Suspender betalactámico e iniciar Clindamicina 300 mg c/6h con un vaso entero de agua",
+                                detail: "Familia Lincosamida sin reactividad cruzada con penicilinas.",
+                                quality: "optimal",
+                                points: 170,
+                                nextNode: "node_day5_diarrhea",
+                                rationale: "¡Paciente estabilizado! La clindamicina controla la infección sin riesgo alérgico cruzado."
+                            }
+                        ]
+                    },
+                    "node_day5_diarrhea": {
+                        stage: "PASO 2 • ALERTA AL 6.º DÍA",
+                        type: "warning",
+                        headline: "Infección dental curada, pero aparece diarrea con sangre",
+                        description: `<p>Al 6.º día el trismus desapareció, pero el paciente presenta <strong>diarrea acuosa severa con sangre y moco</strong> y dolor abdominal (Colitis por <em>Clostridium difficile</em>).</p>`,
+                        vitals: { temp: "38.3 °C", trismus: "42 mm", airway: "Normal", stability: 55 },
+                        visualState: { swelling: "none", severity: "moderate", toothHighlight: "36", caption: "Alerta gastrointestinal: Colitis por C. difficile" },
+                        options: [
+                            {
+                                title: "Recetar Loperamida cada 6h para frenar la diarrea y terminar la Clindamicina",
+                                detail: "Inhibidor del peristaltismo intestinal.",
+                                quality: "wrong",
+                                points: -140,
+                                nextNode: "node_toxic_megacolon",
+                                rationale: "¡Contraindicación absoluta! La loperamida impide eliminar las toxinas A y B de C. difficile."
+                            },
+                            {
+                                title: "Suspender Clindamicina y derivar para hidratación y estudio de toxinas de C. difficile",
+                                detail: "Manejo médico oportuno de la colitis asociada a antibióticos.",
+                                quality: "valid",
+                                points: 180,
+                                nextNode: "node_resolution",
+                                rationale: "¡Muy bien! Suspender el antibiótico y evaluar al paciente previene complicaciones graves."
+                            },
+                            {
+                                title: "Cambiar la cápsula de 300 mg por dos de 150 mg creyendo que es por los excipientes",
+                                detail: "Además, dos cápsulas de 150 mg contienen más lactosa (428 mg) que una de 300 mg (283 mg).",
+                                quality: "wrong",
+                                points: -110,
+                                nextNode: "node_toxic_megacolon",
+                                rationale: "Incorrecto. Es una colitis pseudomembranosa por C. difficile y mantener la clindamicina agrava el cuadro."
+                            },
+                            {
+                                title: "Suspender Clindamicina de inmediato y PROHIBIR el uso de Loperamida",
+                                detail: "Detiene la alteración colónica y evita retener toxinas bacterianas.",
+                                quality: "optimal",
+                                points: 220,
+                                nextNode: "node_resolution",
+                                rationale: "¡Decisión brillante! Ante diarrea grave se suspende el fármaco y jamás se dan antiperistálticos."
+                            }
+                        ]
+                    },
+                    "node_toxic_megacolon": {
+                        stage: "COMPLICACIÓN • RETENCIÓN DE TOXINAS",
+                        type: "complication",
+                        headline: "Agravamiento severo de la Colitis Pseudomembranosa",
+                        description: `<p>La retención de toxinas A y B de <em>Clostridium difficile</em> causó distensión abdominal aguda y fiebre de 39 °C.</p>`,
+                        vitals: { temp: "39.0 °C", trismus: "42 mm", airway: "Normal", stability: 25 },
+                        visualState: { swelling: "none", severity: "severe", toothHighlight: "36", caption: "¡Peligro! Toxicidad colónica por C. difficile" },
+                        options: [
+                            {
+                                title: "Duplicar la dosis de Loperamida para detener las evacuaciones",
+                                detail: "Mayor bloqueo de la motilidad colónica.",
+                                quality: "wrong",
+                                points: -150,
+                                nextNode: "node_toxic_megacolon",
+                                rationale: "¡Peligro mortal! Los antiperistálticos están drásticamente prohibidos en la colitis por C. difficile."
+                            },
+                            {
+                                title: "Suspender inmediatamente Clindamicina y Loperamida + derivación hospitalaria urgente",
+                                detail: "Detención inmediata de ambos fármacos y tratamiento específico.",
+                                quality: "optimal",
+                                points: 170,
+                                nextNode: "node_resolution",
+                                rationale: "¡Rescate a tiempo! Al suspender ambos fármacos y tratar a C. difficile el paciente se recupera."
+                            },
+                            {
+                                title: "Suspender toda la medicación actual e ingresar a urgencias para reposición hidroelectrolítica",
+                                detail: "Estabilización sistémica y manejo médico especializado.",
+                                quality: "valid",
+                                points: 140,
+                                nextNode: "node_resolution",
+                                rationale: "¡Correcto! La suspensión inmediata y el soporte hospitalario resuelven la emergencia."
+                            },
+                            {
+                                title: "Cambiar Clindamicina oral por Clindamicina intramuscular 600 mg",
+                                detail: "Mantener el mismo principio activo por vía parenteral.",
+                                quality: "wrong",
+                                points: -130,
+                                nextNode: "node_toxic_megacolon",
+                                rationale: "Incorrecto. La clindamicina parenteral también se excreta por vía biliar/fecal y perpetúa la colitis."
+                            }
+                        ]
+                    },
+                    "node_resolution": {
+                        type: "complete",
+                        summary: "Manejaste con éxito la alergia anafiláctica a penicilinas y resolviste de forma segura la alerta de Colitis Pseudomembranosa."
+                    }
+                }
+            },
+
+            {
+                id: 3,
+                code: "CASO 3",
+                title: "Odontopediatría y Cálculo IV",
+                subtitle: "Pieza 84 • Niño de 6 años (18 kg)",
+                patient: "Niño, 6 años (18 kg)",
+                allergy: "No traga cápsulas",
+                allergyType: "warning",
+                tooth: "Molar Temporal (Pieza 84)",
+                summaryIcon: "ph-baby",
+                pearl: "Las cápsulas de clindamicina NO se pueden abrir ni partir. En niños de 18 kg: Clindamicina IV a 20 mg/kg/día = 360 mg/día = 120 mg c/8h (0,8 ml del vial de 150 mg/ml) diluidos en 20 ml de NaCl 0,9% en 15 min.",
+                nodes: {
+                    "start": {
+                        stage: "PASO 1 • CONSULTA PEDIÁTRICA (18 KG)",
+                        type: "initial",
+                        headline: "Niño de 6 años (18 kg) que no puede tragar cápsulas",
+                        description: `<p>Acude con celulitis facial inicial por necrosis de pieza 84. La madre indica que el niño <strong>no puede tragar cápsulas enteras</strong>. Tras drenar, ¿qué indicas en consulta ambulatoria?</p>`,
+                        vitals: { temp: "38.0 °C", trismus: "30 mm", airway: "Normal", stability: 72 },
+                        visualState: { swelling: "vestibular_right", severity: "moderate", toothHighlight: "84", caption: "Paciente pediátrico de 18 kg" },
+                        options: [
+                            {
+                                title: "Abrir cápsulas de Clindamicina 150 mg y darle la mitad del polvo disuelto en jugo",
+                                detail: "Fraccionar cápsulas duras manualmente.",
+                                quality: "wrong",
+                                points: -110,
+                                nextNode: "node_capsule_failure",
+                                rationale: "¡Error! Las cápsulas de clindamicina deben tragarse enteras; no existe suspensión oral y abrirlas causa vómito e irritación."
+                            },
+                            {
+                                title: "Amoxicilina / Ácido Clavulánico en suspensión oral pediátrica ajustada a 18 kg",
+                                detail: "Suspensión líquida con cobertura frente a betalactamasas.",
+                                quality: "valid",
+                                points: 170,
+                                nextNode: "node_hospital_iv_calc",
+                                rationale: "¡Muy bien! Es una excelente opción líquida pediátrica cuando el niño no puede tragar cápsulas."
+                            },
+                            {
+                                title: "Doxiciclina 100 mg disuelta en leche cada 12 horas",
+                                detail: "Tetraciclina en niño menor de 8 años.",
+                                quality: "wrong",
+                                points: -140,
+                                nextNode: "node_capsule_failure",
+                                rationale: "¡Contraindicado! Las tetraciclinas están prohibidas en menores de 8 años por pigmentación dentaria e hipoplasia del esmalte."
+                            },
+                            {
+                                title: "Amoxicilina en suspensión oral a 40 mg/kg/día (240 mg cada 8 horas)",
+                                detail: "18 kg × 40 mg = 720 mg/día divididos en 3 tomas de jarabe.",
+                                quality: "optimal",
+                                points: 200,
+                                nextNode: "node_hospital_iv_calc",
+                                rationale: "¡Correcto! Ante la imposibilidad de deglutir cápsulas en atención primaria, se elige una familia con suspensión oral."
+                            }
+                        ]
+                    },
+                    "node_capsule_failure": {
+                        stage: "COMPLICACIÓN • FALLA DE ADMINISTRACIÓN ORAL",
+                        type: "complication",
+                        headline: "El niño vomitó la medicación y la celulitis facial empeoró",
+                        description: `<p>Por la mala tolerancia y subdosificación, la celulitis progresó rápidamente. ¿Cómo procedes ahora?</p>`,
+                        vitals: { temp: "38.9 °C", trismus: "22 mm", airway: "Normal", stability: 40 },
+                        visualState: { swelling: "submandibular_right", severity: "severe", toothHighlight: "84", caption: "Progresión de celulitis facial pediátrica" },
+                        options: [
+                            {
+                                title: "Intentar partir comprimidos de adulto de 875 mg en cuatro pedazos a ojo",
+                                detail: "Extrapolación empírica sin cálculo por kilo de peso.",
+                                quality: "wrong",
+                                points: -120,
+                                nextNode: "node_capsule_failure",
+                                rationale: "Incorrecto. Nunca se deben extrapolar dosis de adulto ni fraccionar formas sólidas no diseñadas para ello."
+                            },
+                            {
+                                title: "Derivar a urgencias pediátricas para drenaje, hidratación y antibioticoterapia intravenosa",
+                                detail: "Manejo intrahospitalario supervisado.",
+                                quality: "valid",
+                                points: 140,
+                                nextNode: "node_hospital_iv_calc",
+                                rationale: "¡Correcto! Ahora calculemos la orden médica intravenosa exacta para sus 18 kg."
+                            },
+                            {
+                                title: "Ingresar a hospitalización para administrar Clindamicina IV calculada por peso (mg/kg/día)",
+                                detail: "Abordaje hospitalario parenteral seguro.",
+                                quality: "optimal",
+                                points: 160,
+                                nextNode: "node_hospital_iv_calc",
+                                rationale: "¡Decisión acertada! En celulitis facial activa que requiere clindamicina en niños pequeños se usa la vía parenteral hospitalaria."
+                            },
+                            {
+                                title: "Inyectar un vial entero de 300 mg en bolo intravenoso rápido en el sillón dental",
+                                detail: "Administración sin diluir y sin cálculo pediátrico.",
+                                quality: "wrong",
+                                points: -160,
+                                nextNode: "node_iv_bolus_shock",
+                                rationale: "¡Peligro vital! Está prohibida la inyección en bolo IV directo de clindamicina."
+                            }
+                        ]
+                    },
+                    "node_hospital_iv_calc": {
+                        stage: "PASO 2 • CÁLCULO HOSPITALARIO IV (18 KG)",
+                        type: "initial",
+                        headline: "Cálculo de Clindamicina IV (Vial 300 mg / 2 ml = 150 mg/ml)",
+                        description: `<p>En el hospital decides usar Clindamicina IV para el niño de <strong>18 kg</strong> (rango pediátrico: 20 a 40 mg/kg/día en 3 o 4 dosis). ¿Cuál prescripción es correcta y segura?</p>`,
+                        vitals: { temp: "38.2 °C", trismus: "26 mm", airway: "Normal", stability: 68 },
+                        visualState: { swelling: "vestibular_right", severity: "moderate", toothHighlight: "84", caption: "Fórmula: 18 kg × 20 mg/kg/día = 360 mg/día (120 mg c/8h)" },
+                        options: [
+                            {
+                                title: "120 mg IV c/8h (0,8 ml) inyectados en BOLO DIRECTO rápido sin diluir",
+                                detail: "Inyección intravenosa directa en menos de 1 minuto.",
+                                quality: "wrong",
+                                points: -150,
+                                nextNode: "node_iv_bolus_shock",
+                                rationale: "¡PROHIBIDO EL BOLO IV! La inyección directa de clindamicina provoca colapso cardiopulmonar y arritmias."
+                            },
+                            {
+                                title: "180 mg IV c/8h (1,2 ml del vial) diluidos en 30 ml de NaCl 0,9% a pasar en 20 minutos",
+                                detail: "Esquema 30 mg/kg/día (dentro del rango 20-40 mg/kg/día) respetando dilución ≤12 mg/ml.",
+                                quality: "valid",
+                                points: 190,
+                                nextNode: "node_resolution",
+                                rationale: "¡Muy bien! 30 mg/kg/día (540 mg/día = 180 mg c/8h) también es válido en infecciones graves y respeta la dilución."
+                            },
+                            {
+                                title: "120 mg IV c/8h (0,8 ml del vial) diluidos en 20 ml de NaCl 0,9% a pasar en 15 minutos",
+                                detail: "Esquema 20 mg/kg/día: concentración 6 mg/ml (≤12 mg/ml) y velocidad 8 mg/min (≤30 mg/min).",
+                                quality: "optimal",
+                                points: 240,
+                                nextNode: "node_resolution",
+                                rationale: "¡Cálculo magistral! 18 kg × 20 mg = 360 mg/día = 120 mg c/8h (0,8 ml), diluido a 6 mg/ml e infundido en 15 min."
+                            },
+                            {
+                                title: "Administrar 600 mg IV cada 6 horas (2,4 g/día) igual que en un paciente adulto",
+                                detail: "Sobredosis pediátrica sin cálculo por kilo de peso.",
+                                quality: "wrong",
+                                points: -130,
+                                nextNode: "node_iv_bolus_shock",
+                                rationale: "Incorrecto. 2.400 mg/día en un niño de 18 kg representa una sobredosis tóxica (>130 mg/kg/día)."
+                            }
+                        ]
+                    },
+                    "node_iv_bolus_shock": {
+                        stage: "EMERGENCIA • TOXICIDAD POR INFUSIÓN INCORRECTA",
+                        type: "complication",
+                        headline: "Hipotensión y arritmia por administración IV inadecuada",
+                        description: `<p>Recuerda la regla de oro de seguridad IV: concentración <strong>≤ 12 mg/ml</strong> y velocidad <strong>≤ 30 mg/min</strong> (10 a 60 min). ¿Cómo corriges la pauta para el niño de 18 kg?</p>`,
+                        vitals: { temp: "38.0 °C", trismus: "26 mm", airway: "Normal", stability: 25 },
+                        visualState: { swelling: "vestibular_right", severity: "severe", toothHighlight: "84", caption: "¡Alerta cardiovascular por infusión rápida!" },
+                        options: [
+                            {
+                                title: "Mezclar la Clindamicina en la misma jeringa con Ampicilina sódica y Gluconato cálcico",
+                                detail: "Mezcla física directa en el mismo envase.",
+                                quality: "wrong",
+                                points: -130,
+                                nextNode: "node_iv_bolus_shock",
+                                rationale: "¡Incompatibilidad física! El fosfato de clindamicina es incompatible con ampicilina y gluconato cálcico."
+                            },
+                            {
+                                title: "Diluir 120 mg (0,8 ml) en 25 ml de Glucosa al 5% e infundir durante 20 minutos",
+                                detail: "Solución IV compatible respetando límites de seguridad.",
+                                quality: "valid",
+                                points: 150,
+                                nextNode: "node_resolution",
+                                rationale: "¡Correcto! La Glucosa al 5% y el Ringer Lactato también son soluciones compatibles para diluir clindamicina."
+                            },
+                            {
+                                title: "Pasar los 120 mg diluidos en solo 2 ml de suero en 1 minuto",
+                                detail: "Concentración de 60 mg/ml y velocidad de 120 mg/min.",
+                                quality: "wrong",
+                                points: -140,
+                                nextNode: "node_iv_bolus_shock",
+                                rationale: "Incorrecto. Supera drásticamente el límite máximo de 12 mg/ml y 30 mg/min."
+                            },
+                            {
+                                title: "Detener bolo y diluir 120 mg (0,8 ml) en 20 ml de NaCl 0,9% en perfusión de 15 minutos",
+                                detail: "Concentración final de 6 mg/ml y velocidad de 8 mg/min.",
+                                quality: "optimal",
+                                points: 170,
+                                nextNode: "node_resolution",
+                                rationale: "¡Corregido! Con la perfusión intermitente diluida el niño se estabiliza y resuelve su infección."
+                            }
+                        ]
+                    },
+                    "node_resolution": {
+                        type: "complete",
+                        summary: "Dominaste la dosificación pediátrica por kilo de peso y las reglas de dilución intravenosa segura."
+                    }
+                }
+            },
+
+            {
+                id: 4,
+                code: "CASO 4",
+                title: "Periodontitis y Prueba D-Test",
+                subtitle: "Doxiciclina, Lácteos y Resistencia MLSB",
+                patient: "Femenina, 28 años",
+                allergy: "Alergia a Penicilina",
+                allergyType: "warning",
+                tooth: "Periodonto Generalizado",
+                summaryIcon: "ph-microscope",
+                pearl: "La Doxiciclina inhibe las metaloproteinasas (no dar con lácteos/antiácidos). Si el cultivo muestra un halo en 'D' (D-Test +), existe el gen erm y la Clindamicina fallará.",
+                nodes: {
+                    "start": {
+                        stage: "PASO 1 • PERIODONTITIS AGRESIVA (ESTADIO III GRADO C)",
+                        type: "initial",
+                        headline: "Destrucción periodontal rápida y sangrado severo",
+                        description: `<p>Tras realizar raspado y alisado radicular en esta paciente con alergia no anafiláctica a penicilina, buscas un antimicrobiano que además <strong>inhiba las colagenasas (metaloproteinasas)</strong>.</p>`,
+                        vitals: { temp: "36.8 °C", trismus: "45 mm", airway: "Normal", stability: 80 },
+                        visualState: { swelling: "periodontal_general", severity: "moderate", toothHighlight: "16-46", caption: "Periodontitis Estadio III Grado C" },
+                        options: [
+                            {
+                                title: "Doxiciclina 100 mg tomada junto con un vaso de leche o antiácido de aluminio/magnesio",
+                                detail: "Ingesta simultánea con cationes divalentes y trivalentes (Ca²⁺, Mg²⁺, Al³⁺).",
+                                quality: "wrong",
+                                points: -100,
+                                nextNode: "node_chelation_failure",
+                                rationale: "¡Falla por quelación! El calcio de los lácteos y los antiácidos forman quelatos inabsorbibles con las tetraciclinas."
+                            },
+                            {
+                                title: "Doxiciclina 100 mg c/24h con agua pura, indicando no tomar calcio, hierro ni lácteos 2h antes o después",
+                                detail: "Terapia periodontal adyuvante protegiendo la biodisponibilidad oral.",
+                                quality: "valid",
+                                points: 160,
+                                nextNode: "node_dtest_challenge",
+                                rationale: "¡Muy bien! Separar 2 horas los cationes divalentes garantiza la absorción de la doxiciclina."
+                            },
+                            {
+                                title: "Doxiciclina 100 mg c/12h el Día 1 (dosis de carga) y luego 100 mg c/24h por 14 días, lejos de lácteos",
+                                detail: "Se une a la subunidad 30S, inhibe metaloproteinasas y evita la quelación.",
+                                quality: "optimal",
+                                points: 200,
+                                nextNode: "node_dtest_challenge",
+                                rationale: "¡Excelente! La doxiciclina inhibe las colagenasas tisulares y se absorbe bien lejos de lácteos."
+                            },
+                            {
+                                title: "Indicar únicamente enjuagues cosméticos sin antibiótico ni control mecánico",
+                                detail: "Omisión de terapia antimicrobiana en periodontitis de rápida progresión.",
+                                quality: "wrong",
+                                points: -110,
+                                nextNode: "node_chelation_failure",
+                                rationale: "Incorrecto. En periodontitis Estadio III Grado C por A. actinomycetemcomitans se requiere adyuvancia sistémica."
+                            }
+                        ]
+                    },
+                    "node_chelation_failure": {
+                        stage: "COMPLICACIÓN • QUELACIÓN INTESTINAL",
+                        type: "complication",
+                        headline: "El antibiótico no se absorbió y persiste la supuración",
+                        description: `<p>La formación de quelatos insolubles impidió que la doxiciclina alcanzara niveles séricos y creviculares. ¿Qué indicación le das a la paciente?</p>`,
+                        vitals: { temp: "37.2 °C", trismus: "44 mm", airway: "Normal", stability: 50 },
+                        visualState: { swelling: "periodontal_general", severity: "severe", toothHighlight: "16-46", caption: "Falla terapéutica por quelatos con Calcio/Magnesio" },
+                        options: [
+                            {
+                                title: "Tomar la cápsula con antiácido de hidróxido de aluminio y magnesio para el estómago",
+                                detail: "Cationes Al³⁺ y Mg²⁺ simultáneos.",
+                                quality: "wrong",
+                                points: -100,
+                                nextNode: "node_chelation_failure",
+                                rationale: "Incorrecto. El aluminio y el magnesio también forman quelatos inabsorbibles con la doxiciclina."
+                            },
+                            {
+                                title: "Reprogramar la toma de Doxiciclina en ayunas con un vaso de agua lejos de suplementos de calcio/hierro",
+                                detail: "Optimiza la absorción intestinal de la tetraciclina.",
+                                quality: "valid",
+                                points: 140,
+                                nextNode: "node_dtest_challenge",
+                                rationale: "¡Correcto! Se restablece la eficacia terapéutica."
+                            },
+                            {
+                                title: "Triplicar la dosis de Doxiciclina mezclada con yogurt",
+                                detail: "Sobredosis e interacción alimentaria persistente.",
+                                quality: "wrong",
+                                points: -110,
+                                nextNode: "node_chelation_failure",
+                                rationale: "Incorrecto. Los lácteos seguirán inactivando la absorción del fármaco."
+                            },
+                            {
+                                title: "Tomar Doxiciclina 100 mg con agua, separada al menos 2 horas de lácteos, queso o antiácidos",
+                                detail: "Evita la unión química con Ca²⁺, Mg²⁺ y Al³⁺ en el tracto digestivo.",
+                                quality: "optimal",
+                                points: 160,
+                                nextNode: "node_dtest_challenge",
+                                rationale: "¡Corregido! Ahora la doxiciclina se absorbe correctamente. Veamos el reporte del laboratorio."
+                            }
+                        ]
+                    },
+                    "node_dtest_challenge": {
+                        stage: "PASO 2 • LECTURA DEL D-TEST MICROBIOLÓGICO",
+                        type: "initial",
+                        headline: "Laboratorio reporta Halo en forma de 'D' (D-Test Positivo)",
+                        description: `<p>En el cultivo se aísla una cepa resistente a Eritromicina (E) que muestra un <strong>halo de inhibición aplanado en forma de "D"</strong> alrededor del disco de Clindamicina (DA). ¿Qué significa y qué decides?</p>`,
+                        vitals: { temp: "37.0 °C", trismus: "45 mm", airway: "Normal", stability: 82 },
+                        visualState: { swelling: "dtest_petri", severity: "moderate", toothHighlight: "D-TEST", caption: "D-Test Positivo: Halo en 'D' entre Eritromicina y Clindamicina" },
+                        options: [
+                            {
+                                title: "Cambiar a Clindamicina 300 mg c/6h porque alrededor del disco todavía hay zona sin bacterias",
+                                detail: "Ignorar el aplanamiento del halo en forma de 'D'.",
+                                quality: "wrong",
+                                points: -120,
+                                nextNode: "node_mlsb_failure",
+                                rationale: "¡Error! El halo en 'D' indica resistencia inducible (gen erm) y predice falla terapéutica con clindamicina."
+                            },
+                            {
+                                title: "Registrar en la historia clínica resistencia cruzada a Macrólidos y Lincosamidas (50S) y continuar Doxiciclina",
+                                detail: "Conducta microbiológica basada en evidencia.",
+                                quality: "valid",
+                                points: 190,
+                                nextNode: "node_resolution",
+                                rationale: "¡Excelente! Evitas tanto macrólidos como lincosamidas y culminas con éxito la terapia con doxiciclina."
+                            },
+                            {
+                                title: "Suspender Doxiciclina y recetar Claritromicina 500 mg cada 12 horas",
+                                detail: "Usar otro macrólido que se une al mismo dominio del ARN 23S (50S).",
+                                quality: "wrong",
+                                points: -120,
+                                nextNode: "node_mlsb_failure",
+                                rationale: "Incorrecto. La cepa ya tiene el fenotipo MLSB con resistencia cruzada a macrólidos y lincosamidas."
+                            },
+                            {
+                                title: "Descartar Clindamicina (tiene resistencia inducible MLSB por gen erm) y mantener Doxiciclina",
+                                detail: "Macrólidos y lincosamidas comparten el sitio 50S; Doxiciclina actúa en 30S.",
+                                quality: "optimal",
+                                points: 240,
+                                nextNode: "node_resolution",
+                                rationale: "¡Magistral! El D-Test positivo confirma expresión inducible de metilasa ribosomal (gen erm), invalidando a la clindamicina."
+                            }
+                        ]
+                    },
+                    "node_mlsb_failure": {
+                        stage: "COMPLICACIÓN • FALLA POR GEN erm (FENOTIPO MLSB)",
+                        type: "complication",
+                        headline: "Recaída infecciosa por metilación ribosomal en subunidad 50S",
+                        description: `<p>La bacteria expresó el gen <em>erm</em> modificando la diana 50S, por lo que la Clindamicina/Macrólido fracasó clínicamente. ¿Cómo lo resuelves?</p>`,
+                        vitals: { temp: "37.8 °C", trismus: "40 mm", airway: "Normal", stability: 45 },
+                        visualState: { swelling: "dtest_petri", severity: "severe", toothHighlight: "D-TEST", caption: "Falla clínica por resistencia cruzada en subunidad 50S" },
+                        options: [
+                            {
+                                title: "Aumentar la Clindamicina al doble de dosis por vía oral",
+                                detail: "Insistir con una lincosamida ante D-Test positivo.",
+                                quality: "wrong",
+                                points: -110,
+                                nextNode: "node_mlsb_failure",
+                                rationale: "Incorrecto. La metilación del ARN 23S impide la unión de la clindamicina aunque subas la dosis."
+                            },
+                            {
+                                title: "Cambiar a un esquema que no se una a la subunidad 50S (retomar Tetraciclina + desbridamiento)",
+                                detail: "Evita el bloqueo por el gen erm.",
+                                quality: "valid",
+                                points: 150,
+                                nextNode: "node_resolution",
+                                rationale: "¡Muy bien! El cuadro periodontal se estabiliza satisfactoriamente."
+                            },
+                            {
+                                title: "Suspender Clindamicina y retomar Doxiciclina 100 mg (que actúa en la subunidad 30S)",
+                                detail: "Diana ribosomal diferente sin resistencia cruzada con el fenotipo MLSB.",
+                                quality: "optimal",
+                                points: 170,
+                                nextNode: "node_resolution",
+                                rationale: "¡Excelente! Al actuar en la subunidad 30S y modular las metaloproteinasas, la paciente alcanza la curación."
+                            },
+                            {
+                                title: "Rotar de Clindamicina a Azitromicina 500 mg/día",
+                                detail: "Cambiar de lincosamida a macrólido.",
+                                quality: "wrong",
+                                points: -120,
+                                nextNode: "node_mlsb_failure",
+                                rationale: "Incorrecto. Azitromicina y Clindamicina comparten el sitio de unión en la subunidad 50S."
+                            }
+                        ]
+                    },
+                    "node_resolution": {
+                        type: "complete",
+                        summary: "Dominaste el manejo de la Periodontitis Agresiva con Doxiciclina y la interpretación microbiológica del D-Test."
+                    }
+                }
+            },
+
+            {
+                id: 5,
+                code: "CASO 5",
+                title: "Espacios Profundos y Osteomielitis",
+                subtitle: "Pieza 37 • Debajo de línea milohioidea y UCI",
+                patient: "Masculino, 52 años",
+                allergy: "Caso Grave UCI",
+                allergyType: "danger",
+                tooth: "2.º Molar Inf. Izq. (37)",
+                summaryIcon: "ph-hospital",
+                pearl: "El 2.º y 3.er molar inferior están POR DEBAJO de la línea milohioidea (drenan al espacio submandibular). La Clindamicina alcanza 40% en hueso y en terapias >10-14 días exige control hepático, renal y hemograma.",
+                nodes: {
+                    "start": {
+                        stage: "PASO 1 • URGENCIA MAXILOFACIAL GRAVE",
+                        type: "initial",
+                        headline: "Trismus severo (< 12 mm), voz engolada y Osteomielitis",
+                        description: `<p>Infección originada en el <strong>2.º molar inferior (37)</strong>, cuyo ápice está <strong>por debajo de la línea milohioidea</strong>, invadiendo el espacio submandibular y parafaríngeo con secuestro óseo mandibular.</p>`,
+                        vitals: { temp: "39.1 °C", trismus: "11 mm", airway: "Riesgo Alto", stability: 45 },
+                        visualState: { swelling: "ludwig_threat", severity: "severe", toothHighlight: "37", caption: "Absceso submandibular/parafaríngeo (Debajo del milohioideo)" },
+                        options: [
+                            {
+                                title: "Mezclar Clindamicina IV y Ampicilina Sódica en la misma bolsa de suero para mayor espectro",
+                                detail: "Mezcla física directa en la misma solución intravenosa.",
+                                quality: "wrong",
+                                points: -120,
+                                nextNode: "node_iv_incompatibility",
+                                rationale: "¡Incompatibilidad física! El fosfato de clindamicina es físicamente incompatible con la ampicilina sódica."
+                            },
+                            {
+                                title: "Enviar a casa con antibiótico en cápsulas y citar en 7 días cuando abra mejor la boca",
+                                detail: "Manejo ambulatorio ante trismus < 12 mm y disfagia.",
+                                quality: "wrong",
+                                points: -160,
+                                nextNode: "node_ludwig_mediastinitis",
+                                rationale: "¡Peligro mortal! Evoluciona a Angina de Ludwig bilateral y mediastinitis descendente."
+                            },
+                            {
+                                title: "Asegurar vía aérea + Drenaje quirúrgico + Clindamicina IV 900 mg en 100 ml de Ringer Lactato (en 30 min) c/8h",
+                                detail: "2,7 g/día (dosis máxima en infecciones graves): 9 mg/ml a 30 mg/min.",
+                                quality: "valid",
+                                points: 200,
+                                nextNode: "node_osteomyelitis_followup",
+                                rationale: "¡Excelente! 900 mg en 100 ml durante 30 minutos (2,7 g/día) cumple estrictamente el protocolo oficial para infecciones graves."
+                            },
+                            {
+                                title: "Asegurar vía aérea + Drenaje extraoral + Clindamicina IV 600 mg en 100 ml NaCl 0,9% (en 20 min) c/6h",
+                                detail: "2,4 g/día: concentración 6 mg/ml (≤12 mg/ml), velocidad 30 mg/min y 40% de penetración ósea.",
+                                quality: "optimal",
+                                points: 240,
+                                nextNode: "node_osteomyelitis_followup",
+                                rationale: "¡Manejo hospitalario perfecto! Aseguraste vía aérea, drenaste espacios profundos y aplicaste Clindamicina IV segura."
+                            }
+                        ]
+                    },
+                    "node_ludwig_mediastinitis": {
+                        stage: "EMERGENCIA VITAL • ANGINA DE LUDWIG",
+                        type: "complication",
+                        headline: "Compromiso bilateral submandibular, sublingual y submentoniano",
+                        description: `<p>El paciente presenta elevación dura del suelo de la boca, protrusión lingual y riesgo inminente de asfixia y mediastinitis necrotizante.</p>`,
+                        vitals: { temp: "39.6 °C", trismus: "8 mm", airway: "CRÍTICA", stability: 18 },
+                        visualState: { swelling: "ludwig_threat", severity: "severe", toothHighlight: "37", caption: "¡ANGINA DE LUDWIG! Obstrucción aérea inminente" },
+                        options: [
+                            {
+                                title: "Inyectar 1.200 mg de Clindamicina en bolo IV directo de 1 minuto por la urgencia",
+                                detail: "Administración rápida sin diluir.",
+                                quality: "wrong",
+                                points: -160,
+                                nextNode: "node_ludwig_mediastinitis",
+                                rationale: "¡Prohibido! El bolo IV directo produce paro cardíaco e hipotensión severa."
+                            },
+                            {
+                                title: "Vía aérea quirúrgica de urgencia + desbridamiento óseo/fascial + Clindamicina IV 2,4 a 2,7 g/día diluida",
+                                detail: "Protocolo integral de cirugía maxilofacial y UCI.",
+                                quality: "valid",
+                                points: 170,
+                                nextNode: "node_osteomyelitis_followup",
+                                rationale: "¡Muy bien! Con la vía aérea asegurada y el drenaje amplio el paciente sale del estado crítico."
+                            },
+                            {
+                                title: "Intubación por fibrobroncoscopia/traqueostomía + Drenaje bilateral + Clindamicina IV 600 mg c/6h (en 20 min)",
+                                detail: "Aseguramiento inmediato de vía aérea, desbridamiento y terapia IV.",
+                                quality: "optimal",
+                                points: 190,
+                                nextNode: "node_osteomyelitis_followup",
+                                rationale: "¡Salvaste la vida del paciente! Ahora pasemos al control prolongado de la osteomielitis."
+                            },
+                            {
+                                title: "Colocar solo oxígeno por cánula nasal y esperar efecto de antibióticos intramusculares",
+                                detail: "Omitir intubación/traqueostomía y drenaje quirúrgico.",
+                                quality: "wrong",
+                                points: -150,
+                                nextNode: "node_ludwig_mediastinitis",
+                                rationale: "Incorrecto. En la Angina de Ludwig la obstrucción de la epiglotis exige asegurar la vía aérea de inmediato."
+                            }
+                        ]
+                    },
+                    "node_iv_incompatibility": {
+                        stage: "COMPLICACIÓN • INCOMPATIBILIDAD EN LÍNEA IV",
+                        type: "complication",
+                        headline: "Precipitación del fármaco en la vía intravenosa",
+                        description: `<p>Recuerda que el fosfato de clindamicina es físicamente incompatible en mezcla con <strong>ampicilina sódica, fenitoína, barbitúricos, aminofilina, gluconato cálcico y sulfato de magnesio</strong>.</p>`,
+                        vitals: { temp: "38.8 °C", trismus: "15 mm", airway: "Intubado", stability: 45 },
+                        visualState: { swelling: "submandibular_left", severity: "moderate", toothHighlight: "37", caption: "Incompatibilidad física en solución IV" },
+                        options: [
+                            {
+                                title: "Mezclar la Clindamicina en la misma bolsa con Fenitoína sódica y Sulfato de magnesio",
+                                detail: "Mezcla con fármacos físicamente incompatibles.",
+                                quality: "wrong",
+                                points: -120,
+                                nextNode: "node_iv_incompatibility",
+                                rationale: "Incorrecto. Ambos fármacos son físicamente incompatibles con el fosfato de clindamicina."
+                            },
+                            {
+                                title: "Diluir 600 mg de Clindamicina en 100 ml de Glucosa al 5% o Ringer Lactato por línea independiente",
+                                detail: "Soluciones compatibles oficiales en perfusión de 20 minutos.",
+                                quality: "valid",
+                                points: 150,
+                                nextNode: "node_osteomyelitis_followup",
+                                rationale: "¡Correcto! Tanto NaCl 0,9% como Glucosa 5% y Ringer Lactato son totalmente compatibles."
+                            },
+                            {
+                                title: "Aplicar 1.200 mg de Clindamicina en una sola inyección intramuscular única",
+                                detail: "Superar el límite máximo intramuscular de 600 mg por inyección.",
+                                quality: "wrong",
+                                points: -110,
+                                nextNode: "node_iv_incompatibility",
+                                rationale: "Incorrecto. Por vía IM no se recomienda superar los 600 mg en una sola inyección por daño tisular y absceso estéril."
+                            },
+                            {
+                                title: "Infundir por vía separada: 600 mg de Clindamicina en 100 ml de NaCl 0,9% durante 20 minutos c/6h",
+                                detail: "Concentración de 6 mg/ml (≤12 mg/ml) y velocidad de 30 mg/min.",
+                                quality: "optimal",
+                                points: 170,
+                                nextNode: "node_osteomyelitis_followup",
+                                rationale: "¡Corregido! A las 96 horas el paciente está afebril y tras 7 días pasa a vía oral."
+                            }
+                        ]
+                    },
+                    "node_osteomyelitis_followup": {
+                        stage: "PASO 2 • SEGUIMIENTO DE OSTEOMIELITIS (3 SEMANAS)",
+                        type: "optimal",
+                        headline: "Traslape a Clindamicina oral (450 mg c/6h) por 21 días totales",
+                        description: `<p>Tras 7 días IV, pasas a Clindamicina oral hasta completar 3 semanas para erradicar la osteomielitis. Como el tratamiento <strong>supera los 10 a 14 días</strong>, ¿qué protocolo aplicas?</p>`,
+                        vitals: { temp: "36.6 °C", trismus: "38 mm", airway: "Normal", stability: 90 },
+                        visualState: { swelling: "none", severity: "mild", toothHighlight: "37", caption: "Consolidación ósea mandibular en curso" },
+                        options: [
+                            {
+                                title: "No solicitar ningún análisis de sangre ni renal durante las 3 semanas de tratamiento",
+                                detail: "Omitir controles de laboratorio en terapia prolongada.",
+                                quality: "wrong",
+                                points: -90,
+                                nextNode: "node_osteomyelitis_followup",
+                                rationale: "Incorrecto. En tratamientos mayores a 10-14 días es obligatorio monitorizar función hepática, renal y hemograma."
+                            },
+                            {
+                                title: "Monitorizar laboratorio (hígado, riñón y hemograma) e instruir suspender si aparece diarrea",
+                                detail: "Seguimiento integral ambulatorio hasta el día 21.",
+                                quality: "valid",
+                                points: 170,
+                                nextNode: "node_resolution",
+                                rationale: "¡Muy bien! Vigilancia clínica y bioquímica completa hasta el alta definitiva."
+                            },
+                            {
+                                title: "Indicar que tome las cápsulas de 450 mg sin agua y acostado antes de dormir",
+                                detail: "Riesgo directo de estancamiento y ulceración esofágica.",
+                                quality: "wrong",
+                                points: -100,
+                                nextNode: "node_osteomyelitis_followup",
+                                rationale: "Incorrecto. Las cápsulas duras deben tomarse siempre con un vaso entero de agua para evitar esofagitis."
+                            },
+                            {
+                                title: "Solicitar pruebas periódicas de función hepática, función renal y recuentos hemáticos + tomar con 1 vaso de agua",
+                                detail: "Vigilancia de transaminasas, creatinina (riesgo de lesión renal aguda) y leucocitos/plaquetas.",
+                                quality: "optimal",
+                                points: 200,
+                                nextNode: "node_resolution",
+                                rationale: "¡Excelente! Cumples la farmacovigilancia obligatoria (>10-14 días) y logras la curación completa de la osteomielitis."
+                            }
+                        ]
+                    },
+                    "node_resolution": {
+                        type: "complete",
+                        summary: "Resolviste el caso crítico de osteomielitis y absceso profundo aplicando el protocolo quirúrgico y parenteral completo."
+                    }
+                }
+            }
+        ];
+
+        /********************************************************************
+         * 3. GAME STATE & MINIMALIST UI CONTROLLERS
+         ********************************************************************/
+        let gameState = {
+            score: 0,
+            streak: 1,
+            completedCases: [],
+            currentCaseId: null,
+            currentNodeKey: null,
+            currentShuffledOptions: [],
+            lastOptimalIndex: 0,
+            visitedPath: [],
+            rescuesInCurrentCase: 0
+        };
+
+        // Mezcla las opciones y evita que la respuesta óptima caiga siempre en la A o repita posición
+        function shuffleOptionsAvoidingA(options) {
+            const copy = options.slice();
+            for (let attempt = 0; attempt < 12; attempt++) {
+                for (let i = copy.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    const temp = copy[i];
+                    copy[i] = copy[j];
+                    copy[j] = temp;
+                }
+                const optimalIdx = copy.findIndex(function(o) { return o.quality === 'optimal'; });
+                if (optimalIdx !== 0 && optimalIdx !== gameState.lastOptimalIndex) {
+                    gameState.lastOptimalIndex = optimalIdx;
+                    return copy;
+                }
+            }
+            return copy;
+        }
+
+        function updateHUD() {
+            document.getElementById('hudScore').textContent = `${gameState.score} pts`;
+            document.getElementById('hudStreak').textContent = `x${gameState.streak}`;
+        }
+
+        function triggerFloatingScore(points) {
+            const container = document.getElementById('floatingScoreContainer');
+            const badge = document.createElement('div');
+            const isPos = points >= 0;
+            badge.className = `score-float px-3.5 py-1.5 rounded-xl font-mono font-black text-sm shadow-lg ${
+                isPos ? 'bg-brand-mint text-brand-night' : 'bg-brand-coral text-white'
+            }`;
+            badge.textContent = isPos ? `+${points} pts` : `${points} pts`;
+            container.appendChild(badge);
+            setTimeout(() => badge.remove(), 1400);
+        }
+
+        function toggleHint() {
+            document.getElementById('hintBox').classList.toggle('hidden');
+        }
+
+        function renderCasesGrid() {
+            const grid = document.getElementById('casesGrid');
+            grid.innerHTML = CLINICAL_CASES.map(c => {
+                const isDone = gameState.completedCases.includes(c.id);
+                return `
+                    <button onclick="startCase(${c.id})" class="clean-card rounded-2xl p-4 text-left flex flex-col justify-between hover:border-brand-mint transition group relative">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-extrabold uppercase tracking-wider text-brand-mint">${c.code}</span>
+                                ${isDone
+                                    ? `<span class="px-2 py-0.5 rounded-md bg-brand-mint text-brand-night font-extrabold text-[10px]">✓ Resuelto</span>`
+                                    : `<span class="text-[11px] text-brand-lavender">${c.patient}</span>`
+                                }
+                            </div>
+                            <h3 class="font-display font-extrabold text-base text-white group-hover:text-brand-mint transition">
+                                ${c.title}
+                            </h3>
+                            <p class="text-xs text-brand-lavender/80 line-clamp-2">${c.subtitle}</p>
+                        </div>
+
+                        <div class="pt-3 mt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                            <span class="font-semibold text-white/80">${c.tooth}</span>
+                            <span class="font-extrabold text-brand-mint flex items-center gap-1 group-hover:translate-x-1 transition">
+                                Jugar <i class="ph-bold ph-arrow-right"></i>
+                            </span>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function showWelcomeScreen() {
+            document.getElementById('simulatorScreen').classList.add('hidden');
+            document.getElementById('welcomeScreen').classList.remove('hidden');
+            renderCasesGrid();
+        }
+
+        function resetAllProgress() {
+            gameState.score = 0;
+            gameState.streak = 1;
+            gameState.completedCases = [];
+            updateHUD();
+            renderCasesGrid();
+        }
+
+        function startCase(caseId) {
+            const clinicalCase = CLINICAL_CASES.find(c => c.id === caseId);
+            if (!clinicalCase) return;
+
+            gameState.currentCaseId = caseId;
+            gameState.currentNodeKey = "start";
+            gameState.visitedPath = [{ label: "Inicio", status: "initial" }];
+            gameState.rescuesInCurrentCase = 0;
+
+            document.getElementById('patientNameAge').textContent = clinicalCase.patient;
+            document.getElementById('patientDiagnosisTag').textContent = clinicalCase.tooth;
+            document.getElementById('clinicalPearlText').textContent = clinicalCase.pearl;
+            document.getElementById('hintBox').classList.add('hidden');
+            document.getElementById('lastDecisionFeedback').classList.add('hidden');
+
+            const allergyBadge = document.getElementById('allergyBadge');
+            allergyBadge.textContent = clinicalCase.allergy;
+            allergyBadge.className = clinicalCase.allergyType === 'danger'
+                ? "px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-brand-coral/25 text-brand-coral border border-brand-coral/50"
+                : clinicalCase.allergyType === 'warning'
+                ? "px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-brand-amber/25 text-brand-amber border border-brand-amber/50"
+                : "px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-brand-mint/20 text-brand-mint border border-brand-mint/40";
+
+            document.getElementById('welcomeScreen').classList.add('hidden');
+            document.getElementById('simulatorScreen').classList.remove('hidden');
+
+            renderCurrentNode();
+        }
+
+        function renderCurrentNode() {
+            const clinicalCase = CLINICAL_CASES.find(c => c.id === gameState.currentCaseId);
+            const node = clinicalCase.nodes[gameState.currentNodeKey];
+            if (!node) return;
+
+            if (node.type === 'complete') {
+                handleCaseCompletion(clinicalCase, node);
+                return;
+            }
+
+            // 1. Minimalist Step Breadcrumbs
+            const bc = document.getElementById('algorithmBreadcrumb');
+            bc.innerHTML = gameState.visitedPath.map((s, idx) => {
+                const color = s.status === 'optimal' ? 'bg-brand-mint text-brand-night'
+                            : s.status === 'valid' ? 'bg-brand-amber text-brand-night'
+                            : s.status === 'wrong' ? 'bg-brand-coral text-white'
+                            : 'bg-white/15 text-white';
+                return `
+                    <div class="flex items-center gap-1 shrink-0">
+                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${color}">${idx + 1}. ${s.label}</span>
+                        ${idx < gameState.visitedPath.length - 1 ? `<i class="ph-bold ph-caret-right text-white/30 text-xs"></i>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            // 2. Vitals & Stability
+            document.getElementById('vitalTemp').textContent = node.vitals.temp;
+            document.getElementById('vitalTrismus').textContent = node.vitals.trismus;
+            document.getElementById('vitalAirway').textContent = node.vitals.airway;
+
+            const bar = document.getElementById('stabilityBar');
+            const stText = document.getElementById('stabilityText');
+            bar.style.width = `${node.vitals.stability}%`;
+            stText.textContent = `${node.vitals.stability}%`;
+
+            const card = document.getElementById('scenarioNarrativeCard');
+            const alertBanner = document.getElementById('complicationAlertBanner');
+
+            if (node.type === 'complication') {
+                bar.className = "h-full rounded-full bg-brand-coral transition-all duration-500";
+                stText.className = "font-mono text-brand-coral";
+                alertBanner.classList.remove('hidden');
+                card.classList.add('border-brand-coral');
+            } else {
+                bar.className = "h-full rounded-full bg-brand-mint transition-all duration-500";
+                stText.className = "font-mono text-brand-mint";
+                alertBanner.classList.add('hidden');
+                card.classList.remove('border-brand-coral');
+            }
+
+            // 3. Visual Avatar / Diagram
+            renderPatientVisualizer(node.visualState);
+            // 4. Text & Options (Shuffled dynamically so position is never predictable)
+            document.getElementById('nodeStageLabel').textContent = node.stage;
+            document.getElementById('nodeHeadline').textContent = node.headline;
+            document.getElementById('nodeDescription').innerHTML = node.description;
+
+            gameState.currentShuffledOptions = shuffleOptionsAvoidingA(node.options);
+
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = gameState.currentShuffledOptions.map((opt, idx) => `
+                <button onclick="selectDecisionOption(${idx})" class="option-card w-full text-left rounded-2xl p-4 flex items-center justify-between gap-3 group">
+                    <div class="flex items-start gap-3.5">
+                        <div class="w-8 h-8 rounded-xl bg-white/10 group-hover:bg-brand-mint group-hover:text-brand-night font-display font-black text-xs flex items-center justify-center shrink-0 mt-0.5 transition">
+                            ${String.fromCharCode(65 + idx)}
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm sm:text-base text-white group-hover:text-brand-mint transition leading-snug">
+                                ${opt.title}
+                            </div>
+                            <div class="text-xs text-brand-lavender/75 mt-0.5">
+                                ${opt.detail}
+                            </div>
+                        </div>
+                    </div>
+                    <i class="ph-bold ph-caret-right text-white/40 group-hover:text-brand-mint group-hover:translate-x-0.5 transition text-lg shrink-0"></i>
+                </button>
+            `).join('');
+        }
+
+        function selectDecisionOption(optionIndex) {
+            const clinicalCase = CLINICAL_CASES.find(c => c.id === gameState.currentCaseId);
+            const chosen = gameState.currentShuffledOptions[optionIndex];
+            if (!chosen) return;
+
+            let earnedPoints = chosen.points;
+            if (chosen.quality === 'optimal') {
+                earnedPoints = Math.round(chosen.points * (1 + (gameState.streak - 1) * 0.15));
+                gameState.streak = Math.min(gameState.streak + 1, 5);
+                playSound('success');
+            } else if (chosen.quality === 'valid') {
+                playSound('partial');
+            } else {
+                gameState.streak = 1;
+                gameState.rescuesInCurrentCase += 1;
+                playSound('error');
+            }
+
+            gameState.score = Math.max(0, gameState.score + earnedPoints);
+            updateHUD();
+            triggerFloatingScore(earnedPoints);
+
+            // Show minimalist feedback banner
+            const fb = document.getElementById('lastDecisionFeedback');
+            const iconBox = document.getElementById('feedbackIconBox');
+            const titleEl = document.getElementById('feedbackTitle');
+            const badgeEl = document.getElementById('feedbackPointsBadge');
+            const rationaleEl = document.getElementById('feedbackRationale');
+
+            fb.classList.remove('hidden');
+            if (chosen.quality === 'optimal') {
+                fb.className = "rounded-2xl px-4 py-3 border bg-brand-mint/15 border-brand-mint/40";
+                iconBox.className = "w-8 h-8 rounded-lg bg-brand-mint text-brand-night flex items-center justify-center shrink-0";
+                iconBox.innerHTML = `<i class="ph-bold ph-check"></i>`;
+                titleEl.className = "font-extrabold text-xs uppercase text-brand-mint";
+                titleEl.textContent = "Decisión Correcta";
+                badgeEl.className = "font-mono font-bold text-xs px-2 py-0.5 rounded bg-brand-mint text-brand-night";
+                badgeEl.textContent = `+${earnedPoints} pts`;
+            } else if (chosen.quality === 'valid') {
+                fb.className = "rounded-2xl px-4 py-3 border bg-brand-amber/15 border-brand-amber/40";
+                iconBox.className = "w-8 h-8 rounded-lg bg-brand-amber text-brand-night flex items-center justify-center shrink-0";
+                iconBox.innerHTML = `<i class="ph-bold ph-info"></i>`;
+                titleEl.className = "font-extrabold text-xs uppercase text-brand-amber";
+                titleEl.textContent = "Opción Parcial";
+                badgeEl.className = "font-mono font-bold text-xs px-2 py-0.5 rounded bg-brand-amber text-brand-night";
+                badgeEl.textContent = `+${earnedPoints} pts`;
+            } else {
+                fb.className = "rounded-2xl px-4 py-3 border bg-brand-coral/20 border-brand-coral";
+                iconBox.className = "w-8 h-8 rounded-lg bg-brand-coral text-white flex items-center justify-center shrink-0";
+                iconBox.innerHTML = `<i class="ph-bold ph-x"></i>`;
+                titleEl.className = "font-extrabold text-xs uppercase text-brand-coral";
+                titleEl.textContent = "Decisión Incorrecta";
+                badgeEl.className = "font-mono font-bold text-xs px-2 py-0.5 rounded bg-brand-coral text-white";
+                badgeEl.textContent = `${earnedPoints} pts`;
+            }
+            rationaleEl.textContent = chosen.rationale;
+
+            // Move to next step
+            gameState.currentNodeKey = chosen.nextNode;
+            const nextNodeObj = clinicalCase.nodes[chosen.nextNode];
+            if (nextNodeObj && nextNodeObj.type !== 'complete') {
+                const label = chosen.quality === 'optimal' ? 'Mejoría' : chosen.quality === 'valid' ? 'Alternativa' : 'Complicación';
+                gameState.visitedPath.push({ label, status: chosen.quality });
+            }
+
+            renderCurrentNode();
+        }
+
+        function renderPatientVisualizer(visualState) {
+            const container = document.getElementById('svgPatientContainer');
+            document.getElementById('visualCaption').textContent = visualState.caption;
+
+            if (visualState.swelling === 'dtest_petri') {
+                const isErr = visualState.severity === 'severe';
+                container.innerHTML = `
+                    <svg class="w-48 h-40" viewBox="0 0 240 190">
+                        <circle cx="120" cy="95" r="78" fill="#1F145C" stroke="#1EE0B6" stroke-width="2.5"/>
+                        <path d="M 130 52 L 130 138 A 42 42 0 1 0 130 52 Z" fill="#110936" stroke="${isErr ? '#FF4D6D' : '#1EE0B6'}" stroke-width="2" stroke-dasharray="4 2"/>
+                        <circle cx="85" cy="95" r="14" fill="#FF4D6D"/>
+                        <text x="85" y="99" text-anchor="middle" fill="#FFF" font-weight="900" font-size="11">E</text>
+                        <circle cx="152" cy="95" r="14" fill="#1EE0B6"/>
+                        <text x="152" y="99" text-anchor="middle" fill="#130B3B" font-weight="900" font-size="10">DA</text>
+                        <line x1="128" y1="50" x2="128" y2="140" stroke="#FFB800" stroke-width="3"/>
+                    </svg>
+                `;
+                return;
+            }
+
+            const s = visualState.swelling;
+            const color = visualState.severity === 'severe' ? '#FF4D6D' : '#FFB800';
+            let overlay = '';
+
+            if (s === 'vestibular_right') overlay = `<circle cx="96" cy="118" r="18" class="hotspot-pulse" fill="${color}" opacity="0.7"/>`;
+            else if (s === 'sublingual_right') overlay = `<ellipse cx="114" cy="132" rx="26" ry="15" class="hotspot-pulse" fill="#FF4D6D" opacity="0.8"/>`;
+            else if (s === 'submandibular_left') overlay = `<circle cx="160" cy="136" r="22" class="hotspot-pulse" fill="${color}" opacity="0.75"/>`;
+            else if (s === 'submandibular_right') overlay = `<circle cx="96" cy="136" r="22" class="hotspot-pulse" fill="#FF4D6D" opacity="0.75"/>`;
+            else if (s === 'ludwig_threat') overlay = `<ellipse cx="128" cy="144" rx="48" ry="22" class="hotspot-pulse" fill="#FF4D6D" opacity="0.85"/>`;
+            else if (s === 'periodontal_general') overlay = `<rect x="98" y="106" width="60" height="20" rx="8" class="hotspot-pulse" fill="${color}" opacity="0.65"/>`;
+
+            container.innerHTML = `
+                <svg class="w-48 h-40" viewBox="0 0 250 190">
+                    <!-- Neck -->
+                    <path d="M 104 145 L 100 182 L 156 182 L 152 145 Z" fill="#2A1B75"/>
+                    <!-- Head -->
+                    <path d="M 80 60 C 78 22, 178 22, 176 60 C 178 98, 170 132, 148 150 C 135 158, 121 158, 108 150 C 86 132, 78 98, 80 60 Z" fill="#3B289E" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+                    <!-- Eyes -->
+                    <circle cx="106" cy="72" r="3.5" fill="#FFFFFF"/>
+                    <circle cx="150" cy="72" r="3.5" fill="#FFFFFF"/>
+                    <!-- Mouth / Dental Arch -->
+                    <rect x="102" y="106" width="52" height="20" rx="9" fill="#130B3B" stroke="#1EE0B6" stroke-width="1.5"/>
+                    <line x1="108" y1="116" x2="148" y2="116" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="4 2"/>
+                    <!-- Dynamic Swelling -->
+                    ${overlay}
+                </svg>
+            `;
+        }
+
+        function handleCaseCompletion(clinicalCase, completeNode) {
+            if (!gameState.completedCases.includes(clinicalCase.id)) {
+                gameState.completedCases.push(clinicalCase.id);
+                gameState.score += 150;
+                updateHUD();
+            }
+            playSound('fanfare');
+
+            document.getElementById('completeModalTitle').textContent = clinicalCase.title;
+            document.getElementById('completeModalSummary').textContent = completeNode.summary;
+            document.getElementById('completeModalScore').textContent = `${gameState.score} pts`;
+            document.getElementById('completeModalRescues').textContent = `${gameState.rescuesInCurrentCase}`;
+
+            const nextId = clinicalCase.id < CLINICAL_CASES.length ? clinicalCase.id + 1 : 1;
+            document.getElementById('nextCaseBtn').onclick = () => {
+                document.getElementById('caseCompleteModal').classList.add('hidden');
+                startCase(nextId);
+            };
+
+            document.getElementById('caseCompleteModal').classList.remove('hidden');
+        }
+
+        function closeCompleteModalAndHome() {
+            document.getElementById('caseCompleteModal').classList.add('hidden');
+            showWelcomeScreen();
+        }
+
+        function toggleModal(modalId) {
+            document.getElementById(modalId).classList.toggle('hidden');
+        }
+
+        function updateCalculator() {
+            const weight = parseFloat(document.getElementById('calcWeight').value) || 0;
+            const mgKg = parseFloat(document.getElementById('calcMgKg').value) || 0;
+            const totalDay = weight * mgKg;
+            const perDose = totalDay / 3;
+            const vialMl = perDose / 150;
+
+            document.getElementById('resTotalDay').textContent = `${Math.round(totalDay)} mg`;
+            document.getElementById('resPerDose').textContent = `${Math.round(perDose)} mg`;
+            document.getElementById('resVialMl').textContent = `${vialMl.toFixed(1)} ml`;
+        }
+
+        window.onload = function() {
+            updateHUD();
+            renderCasesGrid();
+            updateCalculator();
+        };
+    </script>
+</body>
+</html>
